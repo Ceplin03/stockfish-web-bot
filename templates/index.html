@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stockfish vs Player</title>
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; margin-top: 50px; background-color: #f4f4f9;}
+        #board { width: 500px; }
+        .panel { margin-left: 30px; }
+        /* Tambahkan ini di dalam tag <style> di file index.html */
+.highlight {
+    background-color: rgba(255, 255, 51, 0.6) !important;
+}
+    </style>
+</head>
+<body>
+
+    <div id="board"></div>
+    <div class="panel">
+        <h2>Papan Catur Web</h2>
+        <p>Anda bermain sebagai <b>HITAM</b>.</p>
+        <button onclick="startGame()">Mulai Game (Putih Jalan Duluan)</button>
+        <p id="status">Menunggu game dimulai...</p>
+    </div>
+
+    <script>
+        var board = null;
+        var game = new Chess(); // Engine validasi lokal
+
+        // Saat user selesai mendrag pion (drag & drop)
+function onDrop(source, target) {
+    var move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q' 
+    });
+
+    if (move === null) return 'snapback';
+
+    var uciMove = source + target;
+    document.getElementById("status").innerText = "Menunggu balasan Stockfish...";
+
+    // 1️⃣ BERI HIGHLIGHT PADA LANGKAH HITAM
+    removeHighlights();
+    addHighlight(source, target);
+
+    fetch('/get_white_move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fen: game.fen() })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.move) {
+            var fromSquare = data.move.substring(0,2);
+            var toSquare = data.move.substring(2,4);
+
+            game.move({from: fromSquare, to: toSquare});
+            board.position(game.fen());
+            
+            // 2️⃣ HAPUS HIGHLIGHT HITAM LALU BERI HIGHLIGHT PADA LANGKAH PUTIH
+            removeHighlights();
+            addHighlight(fromSquare, toSquare);
+            
+            document.getElementById("status").innerText = "Giliran Anda (Hitam).";
+        }
+    });
+}
+
+        // Fungsi untuk menghapus highlight lama
+function removeHighlights() {
+    $('#board .square-55d63').removeClass('highlight');
+}
+
+// Fungsi untuk memberi highlight pada kotak tertentu
+function addHighlight(square1, square2) {
+    $('#board .square-' + square1).addClass('highlight');
+    $('#board .square-' + square2).addClass('highlight');
+}
+
+        // Konfigurasi Papan
+        var config = {
+            draggable: true,
+            position: 'start',
+            orientation: 'black', // Karena kamu main hitam
+            onDrop: onDrop,
+            pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' // Asset gratis
+        };
+        board = Chessboard('board', config);
+
+        // Memulai Game
+function startGame() {
+    game.move('e4');
+    board.position(game.fen());
+    
+    // 3️⃣ HIGHLIGHT LANGKAH PERTAMA (e2 ke e4)
+    removeHighlights();
+    addHighlight('e2', 'e4');
+    
+    document.getElementById("status").innerText = "Putih memainkan e2e4. Giliran Anda.";
+}
+    </script>
+</body>
+</html>
